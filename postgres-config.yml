@@ -1,0 +1,17 @@
+integrations:
+  - name: nri-postgresql
+    env:
+      USERNAME: postgres
+      PASSWORD: postgres
+      HOSTNAME: localhost
+      PORT: 5432
+      DATABASE: cruddb
+      COLLECT_DB_LOCK_METRICS: false
+      COLLECTION_LIST: ALL
+      TIMEOUT:  10
+      PGBOUNCER: true
+    interval: 15s
+    labels:
+      env: production
+      role: postgresql
+    inventory_source: config/postgresql

@@ -3,25 +3,48 @@ version: '3'
 services:
   infra-agent:
     container_name: newrelic-infra
+    environment:
+      - POSTGRES_DB_NAME=postgres
+      - POSTGRES_USERNAME=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_PASSWORD=cruddb
     build:
       context: .
-      dockerfile: ./infra/infra.dockerfile
+      dockerfile: ./infra/Dockerfile
     cap_add:
       - SYS_PTRACE
-    network_mode: host
     pid: host
     privileged: true
     volumes:
       - "/:/host:ro"
       - "/var/run/docker.sock:/var/run/docker.sock"
+      - ./postgres-config.yml:/etc/newrelic-infra/integrations.d/postgres-config.yml
     restart: unless-stopped
   postgres:
-    image: postgres:13
+    image: postgres:latest
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: cruddb
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
+  app:
+    build: ./app
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      POSTGRES_HOST: localhost:5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cruddb
+volumes:
+  postgres_data:

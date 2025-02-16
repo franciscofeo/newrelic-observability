@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/newrelic/go-agent/v3/integrations/logcontext-v2/logWriter"
+	newrelic "github.com/newrelic/go-agent/v3/newrelic"
 )
 
 var db *sql.DB
@@ -20,8 +23,9 @@ type Record struct {
 }
 
 func initDB() {
+	log.Println("Initializing PostgreSQL Database.")
 	var err error
-	connStr := "user=postgres dbname=cruddb password=postgres sslmode=disable"
+	connStr := "user=postgres host=postgres dbname=cruddb password=postgres sslmode=disable"
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
@@ -50,6 +54,7 @@ func addRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("Creating record: " + record.Name)
 	query := `INSERT INTO records (name) VALUES ($1) RETURNING id, created_at`
 	err := db.QueryRow(query, record.Name).Scan(&record.ID, &record.CreatedAt)
 	if err != nil {
@@ -69,6 +74,7 @@ func getAllRecords(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
+	log.Println("Retrieving all records")
 	var records []Record
 	for rows.Next() {
 		var record Record
@@ -90,6 +96,7 @@ func deleteRecord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("Deleting record: " + id)
 	_, err := db.Exec("DELETE FROM records WHERE id = $1", id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -102,10 +109,21 @@ func deleteRecord(w http.ResponseWriter, r *http.Request) {
 func main() {
 	initDB()
 
-	http.HandleFunc("/add", addRecord)
-	http.HandleFunc("/records", getAllRecords)
-	http.HandleFunc("/delete", deleteRecord)
+	app, err := newrelic.NewApplication(
+		newrelic.ConfigAppName("observability-app"),
+		newrelic.ConfigLicense("___"),
+		newrelic.ConfigAppLogForwardingEnabled(true),
+	)
+	if err != nil {
+		fmt.Println(err)
+	}
+	writer := logWriter.New(os.Stdout, app)
+	logger := log.New(&writer, "", log.Default().Flags())
 
-	fmt.Println("Server is running on port 8080...")
+	http.HandleFunc(newrelic.WrapHandleFunc(app, "/add", addRecord))
+	http.HandleFunc(newrelic.WrapHandleFunc(app, "/records", getAllRecords))
+	http.HandleFunc(newrelic.WrapHandleFunc(app, "/delete", deleteRecord))
+
+	logger.Println("Server is running on port 8080. Using the New Relic Logger Forward.")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
