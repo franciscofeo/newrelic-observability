@@ -1,6 +1,11 @@
 # Monitoring and Observability with Prometheus and New Relic
 
 The application will run in `localhost:8080`.
+The grafana username and password is `admin`.
+
+### Grafana Screenshots
+
+![Captura de tela 2025-02-19 201512](https://github.com/user-attachments/assets/82b496ca-cbd2-4628-93be-75a5c17ed320)
 
 ### Prometheus Screenshots
 
