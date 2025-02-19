@@ -17,3 +17,23 @@ The application will run in `localhost:8080`.
 
 ![image](https://github.com/user-attachments/assets/5898c62c-00a8-4708-a68a-fc1a2452b982)
 
+### Application endpoints
+
+Create a record:
+```bash
+curl --location 'localhost:8080/add' \
+--header 'Content-Type: application/json' \
+--data '{
+    "name": "John Doe"
+}'
+```
+
+Return all the records:
+```bash
+curl --location 'localhost:8080/records'
+```
+
+Delete a record:
+```bash
+curl --location --request DELETE 'localhost:8080/delete?id=id'
+```
