@@ -1,6 +1,7 @@
-version: '3'
+version: '3.9'
 
 services:
+
   infra-agent:
     container_name: newrelic-infra
     environment:
@@ -20,6 +21,7 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - ./postgres-config.yml:/etc/newrelic-infra/integrations.d/postgres-config.yml
     restart: unless-stopped
+
   postgres:
     image: postgres:latest
     environment:
@@ -35,6 +37,7 @@ services:
       retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
   app:
     build: ./app
     ports:
@@ -46,5 +49,28 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: cruddb
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prom-config.yml:/etc/prometheus/prometheus.yml
+
+  postgres-exporter:
+    container_name: postgres-exporter
+    image: prometheuscommunity/postgres-exporter
+    depends_on:
+      - postgres
+      - prometheus
+    ports:
+      - 9187:9187
+    environment:
+      DATA_SOURCE_URI: localhost:5432/cruddb?sslmode=disable
+      DATA_SOURCE_USER: postgres
+      DATA_SOURCE_PASS: postgres
+
+
 volumes:
   postgres_data:

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"net/http"
 	"os"
 	"time"
@@ -12,14 +13,42 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/newrelic/go-agent/v3/integrations/logcontext-v2/logWriter"
 	newrelic "github.com/newrelic/go-agent/v3/newrelic"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-var db *sql.DB
+var (
+	db *sql.DB
+
+	recordCounter = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "observability_app_request_records_interaction_total",
+		Help: "The total number of records interaction events",
+	}, []string{"method"})
+
+	randomGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "observability_app_random_gauge",
+		Help: "A random Gauge only to test this feature.",
+	})
+)
 
 type Record struct {
 	ID        int       `json:"id"`
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+func setRandomGauge() {
+	prometheus.MustRegister(randomGauge)
+
+	go func() {
+		for {
+			randomGauge.Set(100 * rand.Float64())
+			time.Sleep(2 * time.Second)
+		}
+	}()
+
 }
 
 func initDB() {
@@ -61,6 +90,7 @@ func addRecord(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	recordCounter.WithLabelValues("POST").Inc()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(record)
@@ -84,7 +114,7 @@ func getAllRecords(w http.ResponseWriter, r *http.Request) {
 		}
 		records = append(records, record)
 	}
-
+	recordCounter.WithLabelValues("GET").Inc()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(records)
 }
@@ -102,12 +132,13 @@ func deleteRecord(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
+	recordCounter.WithLabelValues("DELETE").Inc()
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func main() {
 	initDB()
+	setRandomGauge()
 
 	app, err := newrelic.NewApplication(
 		newrelic.ConfigAppName("observability-app"),
@@ -123,6 +154,9 @@ func main() {
 	http.HandleFunc(newrelic.WrapHandleFunc(app, "/add", addRecord))
 	http.HandleFunc(newrelic.WrapHandleFunc(app, "/records", getAllRecords))
 	http.HandleFunc(newrelic.WrapHandleFunc(app, "/delete", deleteRecord))
+
+	// Prometheus pull metrics endpoint
+	http.Handle("/metrics", promhttp.Handler())
 
 	logger.Println("Server is running on port 8080. Using the New Relic Logger Forward.")
 	log.Fatal(http.ListenAndServe(":8080", nil))
