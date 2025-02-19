@@ -1,4 +1,13 @@
-# New Relic and Go application
+# Monitoring and Observability with Prometheus and New Relic
+
+The application will run in `localhost:8080`.
+
+### Prometheus Screenshots
+
+![Captura de tela 2025-02-19 105025](https://github.com/user-attachments/assets/b8517145-42ad-440a-a1fe-689529e6e89d)
+
+![prometheus](https://github.com/user-attachments/assets/d5c238b5-893a-4625-af3c-b1ef99fdf645)
+
 
 ### New Relic Screenshots
 
