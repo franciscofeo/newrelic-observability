@@ -70,6 +70,14 @@ services:
       DATA_SOURCE_URI: localhost:5432/cruddb?sslmode=disable
       DATA_SOURCE_USER: postgres
       DATA_SOURCE_PASS: postgres
+  
+  grafana:
+    container_name: grafana
+    image: grafana/grafana
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
 
 
 volumes:
